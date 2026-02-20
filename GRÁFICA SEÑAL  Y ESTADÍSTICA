@@ -99,7 +99,7 @@ plt.show()
 
 #HISTOGRAMA
 plt.figure(figsize=(12,4))
-plt.hist(ecg, bins=50, weights=np.ones(len(ecg)) / len(ecg) * 100)
+plt.hist(ecg, bins=50, weights=np.ones(len(ecg)) / len(ecg) * 1200)
 plt.xlabel("Amplitud (mV)")
 plt.ylabel("Frecuencia ()")
 plt.title(f"Histograma – Paciente {patient_id} – {record.sig_name[lead_index]}")
