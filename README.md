@@ -1,6 +1,8 @@
 LABORATORIO 1 – Análisis Estadístico de Señales Biomédicas
 
-Asignatura: Procesamiento Digital de Señales Programa: Ingeniería Biomédica Universidad: Universidad Militar Nueva Granada
+Asignatura: Procesamiento Digital de Señales 
+
+Programa: Ingeniería Biomédica Universidad: Universidad Militar Nueva Granada
 
 DESCRIPCIÓN GENERAL
 
