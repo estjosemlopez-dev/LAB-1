@@ -1,39 +1,29 @@
-#llamado de librerias de PYQT6
-
+#Librerias de PYQT5, para la aplicacion
 import sys
-#from PyQt6 import uic,QtCore
-#from PyQt6.QtWidgets import QMainWindow, QApplication, QVBoxLayout, QWidget,QFileDialog, QDialog, QLabel
-#from PyQt6.QtCore import *
-#from PyQt6.QtGui import *
-
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QTimer
 from PyQt5 import uic
 
-
-#Llamado de librerias para uso del puerto serial
-
+#Librerias para uso del puerto serial
 import serial.tools.list_ports
 import serial
 import numpy as np
 import struct
 
-import wfdb
-import os
-import time
-from collections import deque
+#Librerias extra
+import wfdb #formato de physionet
+import os #trabajar con rutas
+import time #encontrar el tiempo
+from collections import deque #nueva estructura de datos
 
-#importar libreria para creacion de hilos
-
+#Libreria para creacion de hilos
 import threading
 
-#Importar la libreria para graficar
-
+#Llibrerias para graficar
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 #Creacion de la ventana emergente del histograma
-
 class ventanaHistograma(QDialog):
     def __init__(self, datos):
         super().__init__()
@@ -57,20 +47,23 @@ class ventanaHistograma(QDialog):
         self.canvas.draw()
 
 #Creacion de la ventana principal
-
 class principal(QMainWindow):
-
     
     def __init__(self):
 
         # Poner la direccion del desinger para abrir la ventana      
         super(principal,self).__init__()
-        try:
+        
+        #busca el .ui en el mismo directorio que el codigo y lo carga
+        try: 
             ruta_ui = os.path.join(os.path.dirname(__file__), "interfaz1.ui") #busca activamente el archivo de la interfaz en el mismo directorio
             uic.loadUi(ruta_ui, self)
         except Exception as e:
             print("Error al cargar UI:", e)
-        self.resize(1600, 800) #Define el tamaño de la ventana
+
+        #Define el tamaño de la ventana
+        self.resize(1600, 800) 
+        
         #Llamar la funcion de verificacion de los puertos de comunicacion
         self.puertosdisponibles()
         self.ser = None
@@ -89,12 +82,13 @@ class principal(QMainWindow):
         #Variables para graficar
         self.frecuenciaSenal = 100 #frecuencia de muestreo
         self.tiempoVisible = 5 #que tanto tiempo se ve en la grafica, en segundos
+        self.offset = 0
 
+        #Crear los buffers
         maxlen = int(self.frecuenciaSenal * 30)
         self.buffer1 = deque(maxlen=maxlen)
         self.buffer2 = deque(maxlen=maxlen)
         self.buf_lock = threading.Lock()
-        self.offset = 0
 
         #Variables para ruido
         self.gaussiano = False
@@ -128,7 +122,7 @@ class principal(QMainWindow):
         self.modo_prueba = False   # colocar en false para usar, true para probar sin serial
         self.tri_val = 0
         self.tri_step = 5     
-        self.tri_max = 100        
+        self.tri_max = 100 #amplitud maxima       
         self.tri_min = 0
         self.tri_dir = 1      
 
@@ -150,9 +144,11 @@ class principal(QMainWindow):
         self.ventana = ventanaHistograma(y)
         self.ventana.exec()
 
+    #Funcion que actualiza el valor del offset
     def cambiarOffset(self):
         self.offset = 10*self.chooseOffset.value()
 
+    #Funciones que actualizan que ruido se activa
     def anadirRuidoGaussiano(self):
         if not self.gaussiano:
             self.impulso = False
@@ -238,46 +234,47 @@ class principal(QMainWindow):
         elif self.potenciaRuido == 0:
             self.lsnr.setText("ind")
 
-    # Funcion para guardar el vector de datos en un archivo .txt        
+    # Funcion para guardar el vector de datos en un archivo        
     def guardarDatos(self):
 
         try:
             ruta, tipoArchivo = QFileDialog.getSaveFileName(
                 self,
-                "Guardar grafica",
-                "registro", #nombre predeterminado
-                "Todos los archivos (*);;WFDB (*.hea);;Archivo de texto (*.txt)"
+                "Guardar grafica", #nombre de la ventana
+                "registro", #nombre predeterminado del archivo
+                "Todos los archivos (*);;WFDB (*.hea);;Archivo de texto (*.txt)" #tipos de archivo disponible
             )
 
             if not ruta:
                 return
-            
-            if tipoArchivo.startswith("Archivo de texto"):
 
+            #Si es .txt lo guarda por numpy
+            if tipoArchivo.startswith("Archivo de texto"):
                 np.savetxt(ruta, self.buffer1, delimiter=",")
 
+            #Si es .hea o .dat lo guarda mediante wfdb
             elif tipoArchivo.startswith("WFDB"):
+                
+                carpeta = os.path.dirname(ruta) #saca la ruta del archivo
+                nombre = os.path.splitext(os.path.basename(ruta))[0] #saca el nombre del archivo
+                nombre = nombre.replace(" ", "_") #quita espacios del nombre
 
-                carpeta = os.path.dirname(ruta)
-                nombre = os.path.splitext(os.path.basename(ruta))[0]
-                nombre = nombre.replace(" ", "_")
-
-                senal = np.asarray(self.buffer1).reshape(-1, 1)
+                senal = np.asarray(self.buffer1).reshape(-1, 1) #vuelve el buffer un vector compatible para guardarse con wfdb
 
                 wfdb.wrsamp(
-                    record_name=nombre,
-                    fs=self.frecuenciaSenal,                
-                    units=["mV"],        
+                    record_name=nombre, 
+                    fs=self.frecuenciaSenal, 
+                    units=["mV"],      
                     sig_name=["Canal"],  
                     p_signal=senal,
-                    fmt=["16"],
-                    write_dir=carpeta
+                    fmt=["16"], #la señal esta a 16bits
+                    write_dir=carpeta #ruta del archivo
                 )
 
         except IOError as e:
             print(f"Error: {e}")
 
-    # Funcion para cargar los datos y graficarlos desde un archivo .txt
+    # Funcion para cargar los datos y graficarlos desde un archivo 
     def cargarDatos(self):
     
         ruta, _ = QFileDialog.getOpenFileName(
@@ -290,13 +287,13 @@ class principal(QMainWindow):
         if not ruta:
             return
         
-        extension = os.path.splitext(ruta)[1].lower()
+        extension = os.path.splitext(ruta)[1].lower() #saca la extension del archivo desde la ruta del mismo
 
         try:
 
             if extension == ".txt":
-                datos = np.loadtxt(ruta, delimiter=",")
-                self.graficarDatosCargados(datos)
+                datos = np.loadtxt(ruta, delimiter=",") #carga mediante numpy
+                self.graficarDatosCargados(datos) 
 
             elif extension in [".hea", ".dat"]:
 
@@ -315,12 +312,16 @@ class principal(QMainWindow):
     def graficarDatosCargados(self,datos):
 
         with self.buf_lock:
-            self.buffer1.clear()
+
+            #Limpia la grafica
+            self.buffer1.clear() 
             self.buffer2.clear()
 
+            #Variables para graficar
             datos = np.array(datos, dtype=float)
             self.ruido = np.zeros(len(datos))
 
+            #Modifica el vector de ruido dependiendo del tipo de ruido
             if self.gaussiano:
                 self.ruido = np.random.normal(0.0, 10.0, size=len(datos))
 
@@ -351,9 +352,10 @@ class principal(QMainWindow):
 
         self.canvas.draw()
 
-    
-
+    #Funcion para que se actualize la grafica cada que se activa el timer
     def actualizarGrafica(self):
+
+        #no la actualiza si no hay datos para graficar
         if len(self.buffer1) == 0:
             return
 
@@ -434,43 +436,30 @@ class principal(QMainWindow):
 
         while not self.stop_event_ser.is_set():
 
-            #Prueba
+            #Modo de Prueba
             if self.modo_prueba:
-
                 vals = []
                 muestras_por_ciclo = int(self.frecuenciaSenal * 0.02)  
-
                 for _ in range(muestras_por_ciclo):
-
                     self.tri_val += self.tri_step * self.tri_dir
-
                     if self.tri_val >= self.tri_max:
                         self.tri_val = self.tri_max
                         self.tri_dir = -1
-
                     elif self.tri_val <= self.tri_min:
                         self.tri_val = self.tri_min
                         self.tri_dir = 1
-
                     vals.append(self.tri_val)
-
                 now = time.time()
-
                 with self.buf_lock:
-
                     vals = np.array(vals, dtype=float)
                     self.ruido = np.zeros(len(vals))
-
                     if self.gaussiano:
                         self.ruido = np.random.normal(0.0, 10.0, size=len(vals))
-
                     if self.impulso:
-                       
                         prob = 0.05  # 5% de los valores tendrán impulso
                         for i in range(len(vals)):
                             if np.random.rand() < prob:
                                 self.ruido[i] = np.max(vals) if np.random.rand() < 0.5 else np.min(vals)
-
                     if self.artefacto:
                         self.ruido = np.zeros(len(vals))
                         n_art = 1  # número de artefactos
@@ -479,30 +468,31 @@ class principal(QMainWindow):
                             start = np.random.randint(0, len(vals) - dur)
                             incremento = np.random.uniform(50, 100)  # valor del artefacto
                             self.ruido[start:start+dur] += incremento
-
                     self.potenciaRuido = np.mean(self.ruido**2)
                     vals += self.ruido
-
                     for v in vals:  
                         v -= self.offset
                         self.buffer1.append(v)
                         self.buffer2.append(now)
                         now += 1.0 / self.frecuenciaSenal
-
                 time.sleep(0.02)
                 continue
 
+            
             #Modo normal
             if self.ser is not None and self.ser.is_open:
                 try:
-                    n = self.ser.in_waiting
+                    n = self.ser.in_waiting #cantidad de datos que le llegan
 
+                    #Espera a que le lleguen dos
                     if n >= 2:
-                        raw = self.ser.read(n)
+                        raw = self.ser.read(n) #lee lo que le lleguen
 
+                        #si los datos que le llegan son impares, lee uno mas para completar una cantidad par
                         if len(raw) % 2 == 1:
                             raw += self.ser.read(1)
 
+                        #traduce las parejas de datos en un valor real en mV
                         vals = []
                         for j in range(0, len(raw), 2):
                             hi = raw[j]
@@ -512,19 +502,19 @@ class principal(QMainWindow):
 
                         now = time.time()
 
-                        with self.buf_lock:
+                        with self.buf_lock: #el buf_lock es para que los vectores no se corrompan cuando se accede a ellos de diferentes lugares al mismo tiempo
 
                             vals = np.array(vals, dtype=float)
                             self.ruido = np.zeros(len(vals))
 
                             if self.gaussiano:
-                                self.ruido = np.random.normal(0.0, 50.0, size=len(vals))
+                                self.ruido = np.random.normal(0.0, 50.0, size=len(vals)) #crea ruido random con una semilla normal
 
                             if self.impulso:
                                 prob = 0.05  # porcentaje con ruido
                                 for i in range(len(vals)):
                                     if np.random.rand() < prob:
-                                        self.ruido[i] = np.max(vals) if np.random.rand() < 0.5 else np.min(vals)
+                                        self.ruido[i] = np.max(vals) if np.random.rand() < 0.5 else np.min(vals) #les da un valor maximo 
 
                             if self.artefacto:
                                 self.ruido = np.zeros(len(vals))
@@ -544,7 +534,7 @@ class principal(QMainWindow):
                                 now += 1.0 / self.frecuenciaSenal
 
                     else:
-                        time.sleep(0.001)
+                        time.sleep(0.005) #espera 5ms antes de volver a ejecutar el hilo
 
                 except Exception as e:
                     print("Error en hilo serial:", e)
@@ -555,5 +545,6 @@ if __name__=="__main__":
     ventana = principal()
     ventana.show()
     sys.exit(app.exec())
+
 
 
